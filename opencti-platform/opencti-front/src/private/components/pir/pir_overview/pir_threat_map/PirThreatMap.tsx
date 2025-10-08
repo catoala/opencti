@@ -19,16 +19,17 @@ import Grid from '@mui/material/Grid2';
 import { graphql, useFragment } from 'react-relay';
 import { InfoOutlined } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
-import WidgetScatter from '../../../../components/dashboard/WidgetScatter';
-import type { Theme } from '../../../../components/Theme';
-import Paper from '../../../../components/Paper';
-import { useFormatter } from '../../../../components/i18n';
+import PirThreatMapTooltip from './PirThreatMapTooltip';
+import useBuildScatterData from './useBuildScatterData';
+import WidgetScatter from '../../../../../components/dashboard/WidgetScatter';
+import type { Theme } from '../../../../../components/Theme';
+import Paper from '../../../../../components/Paper';
+import { useFormatter } from '../../../../../components/i18n';
 import { PirThreatMapFragment$key } from './__generated__/PirThreatMapFragment.graphql';
-import { getNodes } from '../../../../utils/connection';
-import { itemColor } from '../../../../utils/Colors';
-import { minutesBetweenDates } from '../../../../utils/Time';
+import { getNodes } from '../../../../../utils/connection';
 import PirThreatMapLegend from './PirThreatMapLegend';
-import { uniqueArray } from '../../../../utils/utils';
+import { uniqueArray } from '../../../../../utils/utils';
+import { PirThreatMapMarker } from './pirThreatMapUtils';
 
 const pirThreatMapFragment = graphql`
   fragment PirThreatMapFragment on Query {
@@ -40,6 +41,7 @@ const pirThreatMapFragment = graphql`
     ) {
       edges {
         node {
+          id
           updated_at
           refreshed_at
           entity_type
@@ -63,54 +65,19 @@ const PirThreatMap = ({ data }: PirThreatMapProps) => {
   const CHART_SIZE = 500;
   const theme = useTheme<Theme>();
   const { t_i18n } = useFormatter();
+  const [tooltipData, setTooltipData] = useState<PirThreatMapMarker[]>();
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { stixDomainObjects } = useFragment<PirThreatMapFragment$key>(pirThreatMapFragment, data);
-  const nodes = getNodes(stixDomainObjects);
 
-  const entityTypes = uniqueArray(nodes.flatMap((d) => (d?.entity_type ? d.entity_type : [])));
+  const entityTypes = uniqueArray(getNodes(stixDomainObjects).flatMap((d) => {
+    return d?.entity_type ? d.entity_type : [];
+  }));
   const [filteredEntityTypes, setFilteredEntityTypes] = useState(entityTypes);
 
-  const groupedData: { date: string, score: number, name: string, type: string }[][] = [];
-  nodes.forEach((d) => {
-    const item = {
-      date: d.refreshed_at ?? d.updated_at,
-      score: d.pirInformation?.pir_score ?? 0,
-      name: d?.representative?.main ?? '',
-      type: d?.entity_type ?? '',
-    };
-    if (filteredEntityTypes.includes(item.type)) {
-      if (Object.keys(groupedData).length === 0) {
-        groupedData.push([item]);
-      } else {
-        let filled = false;
-        for (const group of groupedData) {
-          const diffDate = Math.abs(minutesBetweenDates(group[0].date, item.date));
-          const diffScore = Math.abs(group[0].score - item.score);
-          if (diffDate < 1080 && diffScore < 5) { // 1080 = 18h
-            group.push(item);
-            filled = true;
-            break;
-          }
-        }
-        if (!filled) groupedData.push([item]);
-      }
-    }
-  });
-
-  const series: ApexAxisChartSeries = groupedData.map((group) => {
-    const item = group[0];
-    const color = group.length > 1 ? '#ffffff' : itemColor(item.type);
-    return {
-      data: [{
-        x: new Date(item.date),
-        y: item.score,
-        fillColor: color,
-        meta: {
-          group,
-          size: group.length,
-        },
-      }],
-    };
+  const series = useBuildScatterData({
+    stixDomainObjects,
+    entityTypes: filteredEntityTypes,
   });
 
   const containerStyle: CSSProperties = {
@@ -120,21 +87,21 @@ const PirThreatMap = ({ data }: PirThreatMapProps) => {
     fontSize: 12,
   };
 
-  const legendStyle: CSSProperties = {
+  const axisStyle: CSSProperties = {
     position: 'absolute',
     display: 'flex',
     justifyContent: 'space-between',
   };
 
-  const xLegendStyle: CSSProperties = {
-    ...legendStyle,
+  const xStyle: CSSProperties = {
+    ...axisStyle,
     bottom: -6,
     left: theme.spacing(1),
     right: 0,
   };
 
-  const yLegendStyle: CSSProperties = {
-    ...legendStyle,
+  const yStyle: CSSProperties = {
+    ...axisStyle,
     transform: 'rotate(-90deg)',
     transformOrigin: 'top left',
     width: CHART_SIZE,
@@ -159,13 +126,30 @@ const PirThreatMap = ({ data }: PirThreatMapProps) => {
       <Paper title={title}>
         <div style={containerStyle}>
           <div style={{ height: CHART_SIZE }}>
-            <WidgetScatter series={series} />
+            <WidgetScatter
+              series={series}
+              options={{
+                background: theme.palette.background.accent,
+                // Called when mouse hover a node on map.
+                dataPointMouseEnter: (e, _, opts) => {
+                  const apexSeries = opts.w.config.series[opts.seriesIndex];
+                  const item = apexSeries.data[opts.dataPointIndex].meta.group as PirThreatMapMarker[];
+                  setTooltipData(item);
+                  setTooltipPos({ x: e.offsetX, y: e.offsetY });
+                },
+                labelsFormatter: (_, opts) => {
+                  const apexSeries = opts.w.config.series[opts.seriesIndex];
+                  const item = apexSeries.data[opts.dataPointIndex].meta;
+                  return item.size > 1 ? item.size : '';
+                },
+              }}
+            />
           </div>
-          <div style={xLegendStyle}>
+          <div style={xStyle}>
             <span>{t_i18n('One month ago')}</span>
             <span>{t_i18n('Today')}</span>
           </div>
-          <div style={yLegendStyle}>
+          <div style={yStyle}>
             <span>{t_i18n('0 - Less relevant')}</span>
             <span>{t_i18n('Most relevant - 100')}</span>
           </div>
@@ -173,6 +157,12 @@ const PirThreatMap = ({ data }: PirThreatMapProps) => {
         <PirThreatMapLegend
           entityTypes={entityTypes}
           onFilter={setFilteredEntityTypes}
+        />
+        <PirThreatMapTooltip
+          data={tooltipData}
+          x={tooltipPos.x}
+          y={tooltipPos.y}
+          onMouseLeave={() => setTooltipData(undefined)}
         />
       </Paper>
     </Grid>
