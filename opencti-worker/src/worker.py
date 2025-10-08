@@ -236,7 +236,7 @@ class Consumer(Thread):  # pylint: disable=too-many-instance-attributes
     log_level: str
     ssl_verify: Union[bool, str] = False
     json_logging: bool = True
-    objects_max_deps: int = 0
+    objects_max_refs: int = 0
 
     def __post_init__(self) -> None:
         super().__init__()
@@ -376,7 +376,7 @@ class Consumer(Thread):  # pylint: disable=too-many-instance-attributes
                     update = data["update"] if "update" in data else False
                     imported_items, too_large_items_bundles = (
                         self.api.stix2.import_bundle_from_json(
-                            content, update, types, work_id, self.objects_max_deps
+                            content, update, types, work_id, self.objects_max_refs
                         )
                     )
                     if len(too_large_items_bundles) > 0:
@@ -411,7 +411,7 @@ class Consumer(Thread):  # pylint: disable=too-many-instance-attributes
                         if "x_opencti_event_version" in content_json
                         else None
                     )
-                    stix2_splitter = OpenCTIStix2Splitter(self.objects_max_deps)
+                    stix2_splitter = OpenCTIStix2Splitter(self.objects_max_refs)
                     expectations, _, bundles, too_large_elements_bundles = (
                         stix2_splitter.split_bundle_with_expectations(
                             content_json, False, event_version
@@ -646,9 +646,9 @@ class Worker:  # pylint: disable=too-few-public-methods, too-many-instance-attri
             config,
             default="",
         )
-        self.stix_object_max_deps = get_config_variable(
-            "WORKER_OBJECTs_MAX_DEPS",
-            ["worker", "objects_max_deps"],
+        self.stix_object_max_refs = get_config_variable(
+            "WORKER_OBJECTS_MAX_REFS",
+            ["worker", "objects_max_refs"],
             config,
             True,
             100000,
@@ -747,7 +747,7 @@ class Worker:  # pylint: disable=too-few-public-methods, too-many-instance-attri
                                 self.log_level,
                                 self.opencti_ssl_verify,
                                 self.opencti_json_logging,
-                                self.stix_object_max_deps,
+                                self.stix_object_max_refs,
                             )
                             self.consumer_threads[push_queue].name = push_queue
                             self.consumer_threads[push_queue].start()
@@ -761,7 +761,7 @@ class Worker:  # pylint: disable=too-few-public-methods, too-many-instance-attri
                             self.log_level,
                             self.opencti_ssl_verify,
                             self.opencti_json_logging,
-                            self.stix_object_max_deps,
+                            self.stix_object_max_refs,
                         )
                         self.consumer_threads[push_queue].name = push_queue
                         self.consumer_threads[push_queue].start()
