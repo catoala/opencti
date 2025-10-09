@@ -594,12 +594,13 @@ describe('Elasticsearch pagination', () => {
     expect(entityTypeMap.get('Software')).toBe(1);
     expect(entityTypeMap.get('Status')).toBe(7);
     expect(entityTypeMap.get('StatusTemplate')).toBe(8);
+    expect(entityTypeMap.get('Theme')).toBe(2);
     expect(entityTypeMap.get('Threat-Actor-Individual')).toBe(2);
     expect(entityTypeMap.get('Threat-Actor-Group')).toBe(1);
     expect(entityTypeMap.get('Tracking-Number')).toBe(1);
     expect(entityTypeMap.get('User')).toBe(TESTING_USERS.length + 1);
     expect(entityTypeMap.get('Vocabulary')).toBe(VOCABULARY_COUNT);
-    expect(data.edges.length).toEqual(550);
+    expect(data.edges.length).toEqual(552);
   });
   it('should entity paginate with field exist filter', async () => {
     const filters = {
