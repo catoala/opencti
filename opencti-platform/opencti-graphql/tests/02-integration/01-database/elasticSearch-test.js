@@ -713,6 +713,7 @@ describe('Elasticsearch pagination', () => {
     expect(entityTypeMap.get('Organization')).toBe(TESTING_ORGS.length + 6);
     expect(entityTypeMap.get('Marking-Definition')).toBe(11);
     expect(entityTypeMap.get('Attack-Pattern')).toBe(2);
+    expect(entityTypeMap.get('Theme')).toBe(2);
     expect(entityTypeMap.get('Threat-Actor-Individual')).toBe(2);
     expect(entityTypeMap.get('Threat-Actor-Group')).toBe(1);
     expect(entityTypeMap.get('Course-Of-Action')).toBe(1);
@@ -737,7 +738,7 @@ describe('Elasticsearch pagination', () => {
     expect(entityTypeMap.get('Label')).toBe(13);
     expect(entityTypeMap.get('Kill-Chain-Phase')).toBe(2);
     expect(entityTypeMap.get('External-Reference')).toBe(7);
-    expect(data.edges.length).toEqual(561);
+    expect(data.edges.length).toEqual(563);
     const createdDates = R.map((e) => e.node.created, data.edges);
     let previousCreatedDate = null;
     for (let index = 0; index < createdDates.length; index += 1) {
