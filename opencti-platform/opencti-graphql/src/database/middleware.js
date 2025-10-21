@@ -647,7 +647,7 @@ export const timeSeriesRelations = async (context, user, args) => {
 export const distributionHistory = async (context, user, types, args) => {
   const { limit = 10, order = 'desc', field } = args;
   if (field.includes('.') && (!field.endsWith('internal_id') && !field.includes('context_data') && !field.includes('opinions_metrics'))) {
-    throw FunctionalError('Distribution entities does not support relation aggregation field');
+    throw FunctionalError('Distribution entities does not support relation aggregation field', { field });
   }
   let finalField = field;
   if (field.includes('.' && !field.includes('context_data') && !field.includes('opinions_metrics'))) {
@@ -686,7 +686,7 @@ export const distributionEntities = async (context, user, types, args) => {
     && !field.endsWith('internal_id')
     && !field.includes('opinions_metrics');
   if (aggregationNotSupported) {
-    throw FunctionalError('Distribution entities does not support relation aggregation field');
+    throw FunctionalError('Distribution entities does not support relation aggregation field', { field });
   }
   let finalField = field;
   if (field.includes('.') && !field.includes('opinions_metrics')) {
@@ -951,7 +951,7 @@ const inputResolveRefs = async (context, user, input, type, entitySetting) => {
     const inputCreatedBy = inputResolved[INPUT_CREATED_BY];
     if (inputCreatedBy) {
       if (!isStixDomainObjectIdentity(inputCreatedBy.entity_type)) {
-        throw FunctionalError('CreatedBy relation must be an Identity entity');
+        throw FunctionalError('CreatedBy relation must be an Identity entity', { inputCreatedBy.entity_type });
       }
     }
     return inputResolved;
@@ -2062,7 +2062,7 @@ export const updateAttributeMetaResolved = async (context, user, initial, inputs
   if (initial.entity_type === ENTITY_TYPE_IDENTITY_INDIVIDUAL && !isEmptyField(initial.contact_information) && !bypassIndividualUpdate) {
     const isIndividualUser = await isIndividualAssociatedToUser(context, initial);
     if (isIndividualUser) {
-      throw FunctionalError('Cannot update an individual corresponding to a user');
+      throw FunctionalError('Cannot update an individual corresponding to a user', { initial.internal_id });
     }
   }
   if (updates.length === 0) {
@@ -3628,7 +3628,11 @@ export const deleteInferredRuleElement = async (rule, instance, deletedDependenc
 export const deleteRelationsByFromAndTo = async (context, user, fromId, toId, relationshipType, scopeType, opts = {}) => {
   //* v8 ignore if */
   if (R.isNil(scopeType) || R.isNil(fromId) || R.isNil(toId)) {
-    throw FunctionalError('You need to specify a scope type when deleting a relation with from and to');
+    throw FunctionalError('You need to specify a scope type and both IDs when deleting a relation with from and to', {
+      type: scopeType,
+      from: fromId,
+      to: toId
+    });
   }
   const fromThing = await internalLoadById(context, user, fromId, opts);
   // Check mandatory attribute
